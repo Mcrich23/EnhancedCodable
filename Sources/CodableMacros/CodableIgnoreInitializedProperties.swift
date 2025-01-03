@@ -7,5 +7,5 @@
 ///     #stringify(x + y)
 ///
 /// produces a tuple `(x + y, "x + y")`.
-@freestanding(expression)
-public macro stringify<T>(_ value: T) -> (T, String) = #externalMacro(module: "CodableIgnoreInitializedPropertiesMacros", type: "StringifyMacro")
+@attached(member, names: arbitrary)
+public macro CodableIgnoreInitializedProperties() = #externalMacro(module: "CodableIgnoreInitializedPropertiesMacros", type: "InitWithDefaultID")
