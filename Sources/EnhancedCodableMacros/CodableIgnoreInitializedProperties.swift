@@ -31,7 +31,45 @@ enum CodableIgnoreInitializedProperties: MemberMacro {
         }
 //
 //        // Generate the body of the initializer
-        let initBody = properties.map { property in
+        let decodeInitBody = properties.map { property in
+            guard let name = property.bindings.first?.pattern.as(IdentifierPatternSyntax.self)?.identifier.text,
+                  let type = property.bindings.first?.typeAnnotation?.type.description
+            else {
+                return ""
+            }
+            
+            guard (property.bindings.first?.initializer) != nil else {
+                return "self.\(name) = try container.decode(\(type).self, forKey: .\(name))"
+            }
+            
+            return ""
+//            return "self.\(name)\(value)"
+        }.filter({ !$0.isEmpty && $0 != " " }).joined(separator: "\n")
+
+        // Create the full `init(from:)` method
+        let decodeInitMethod = """
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            \(decodeInitBody)
+        }
+        """
+        
+        let standardInitParameters = properties.map { property in
+            guard let name = property.bindings.first?.pattern.as(IdentifierPatternSyntax.self)?.identifier.text,
+                  let type = property.bindings.first?.typeAnnotation?.type.description
+            else {
+                return ""
+            }
+            
+            guard (property.bindings.first?.initializer) != nil else {
+                return "\(name): \(type)"
+            }
+            
+//            return "\(name): \(type)\(value)"
+            return ""
+        }.filter({ !$0.isEmpty && $0 != " " }).joined(separator: ", ")
+        
+        let standardInitBody = properties.map { property in
             guard property.bindings.first?.initializer == nil else {
                 return ""
             }
@@ -39,19 +77,27 @@ enum CodableIgnoreInitializedProperties: MemberMacro {
                 return ""
             }
             
-            return "self.\(name) = try container.decode(\(property.bindings.first?.typeAnnotation?.type.description ?? "Unknown").self, forKey: .\(name))"
-        }.joined(separator: "\n")
+            return "self.\(name) = \(name)"
+        }.filter({ !$0.isEmpty && $0 != " " }).joined(separator: "\n")
 
         // Create the full `init(from:)` method
-        let initMethod = """
-        init(from decoder: Decoder) throws {
-            let container = try decoder.container(keyedBy: CodingKeys.self)
-            \(initBody)
+        let standardInitMethod = """
+        init(\(standardInitParameters)) {
+            \(standardInitBody)
         }
         """
+        
+//        throw MacroExpansionError.message("\(properties)")
+        let returnArray: [DeclSyntax]
+
+        if declaration.description.contains("init(\(standardInitParameters))") {
+            returnArray = [.init(stringLiteral: decodeInitMethod)]
+        } else {
+            returnArray = [.init(stringLiteral: standardInitMethod), .init(stringLiteral: decodeInitMethod)]
+        }
 
         // Return the generated method wrapped in DeclSyntax
-        return [DeclSyntax(stringLiteral: initMethod)]
+        return returnArray
 //        return [.init(stringLiteral: "var foo = \"\"")]
     }
 }

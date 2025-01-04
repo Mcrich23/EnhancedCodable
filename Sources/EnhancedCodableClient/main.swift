@@ -2,16 +2,9 @@ import EnhancedCodable
 import EnhancedCodableMacros
 import Foundation
 
-let a = 17
-let b = 25
-
-let (result, code) = #stringify(a + b)
-
-print("The value \(result) was produced by the code \"\(code)\"")
-
-@InitWithDefaultID
+@CodableIgnoreInitializedProperties
 struct DocCIndex: Codable, Identifiable {
-    let id = UUID()
+    let id: UUID = UUID()
     
     let interfaceLanguages: [String : [InterfaceLanguage]]
     
@@ -22,4 +15,5 @@ struct DocCIndex: Codable, Identifiable {
         
         let children: [InterfaceLanguage]?
     }
+    
 }
