@@ -8,4 +8,4 @@
 ///
 /// produces a tuple `(x + y, "x + y")`.
 @attached(member, names: arbitrary)
-public macro CodableIgnoreInitializedProperties() = #externalMacro(module: "CodableIgnoreInitializedPropertiesMacros", type: "InitWithDefaultID")
+public macro CodableIgnoreInitializedProperties() = #externalMacro(module: "EnhancedCodableMacros", type: "CodableIgnoreInitializedProperties")

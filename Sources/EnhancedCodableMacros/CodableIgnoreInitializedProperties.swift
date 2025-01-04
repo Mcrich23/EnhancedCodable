@@ -18,7 +18,7 @@ enum MacroExpansionError: Error {
     case message(String)
 }
 
-enum InitWithDefaultID: MemberMacro {
+enum CodableIgnoreInitializedProperties: MemberMacro {
     public static func expansion(of node: AttributeSyntax, providingMembersOf declaration: some DeclGroupSyntax, in context: some MacroExpansionContext) throws -> [DeclSyntax] {
 //         Make sure the macro is applied to a struct declaration
         guard let structDecl = declaration as? StructDeclSyntax else {
@@ -59,6 +59,6 @@ enum InitWithDefaultID: MemberMacro {
 @main
 struct CodableIgnoreInitializedPropertiesPlugin: CompilerPlugin {
     let providingMacros: [Macro.Type] = [
-        InitWithDefaultID.self,
+        CodableIgnoreInitializedProperties.self,
     ]
 }
