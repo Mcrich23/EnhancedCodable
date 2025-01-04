@@ -38,12 +38,11 @@ enum CodableIgnoreInitializedProperties: MemberMacro {
                 return ""
             }
             
-            guard (property.bindings.first?.initializer) != nil else {
-                return "self.\(name) = try container.decode(\(type).self, forKey: .\(name))"
+            guard (property.bindings.first?.initializer) == nil && (property.bindings.first?.accessorBlock) == nil else {
+                return ""
             }
             
-            return ""
-//            return "self.\(name)\(value)"
+            return "self.\(name) = try container.decode(\(type).self, forKey: .\(name))"
         }.filter({ !$0.isEmpty && $0 != " " }).joined(separator: "\n")
 
         // Create the full `init(from:)` method
@@ -61,18 +60,18 @@ enum CodableIgnoreInitializedProperties: MemberMacro {
                 return ""
             }
             
-            guard (property.bindings.first?.initializer) != nil else {
-                return "\(name): \(type)"
+            guard (property.bindings.first?.initializer) == nil && (property.bindings.first?.accessorBlock) == nil else {
+                return ""
             }
             
-//            return "\(name): \(type)\(value)"
-            return ""
+                return "\(name): \(type)"
         }.filter({ !$0.isEmpty && $0 != " " }).joined(separator: ", ")
         
         let standardInitBody = properties.map { property in
-            guard property.bindings.first?.initializer == nil else {
+            guard (property.bindings.first?.initializer) == nil && (property.bindings.first?.accessorBlock) == nil else {
                 return ""
             }
+            
             guard let name = property.bindings.first?.pattern.as(IdentifierPatternSyntax.self)?.identifier.text else {
                 return ""
             }
@@ -88,17 +87,19 @@ enum CodableIgnoreInitializedProperties: MemberMacro {
         """
         
 //        throw MacroExpansionError.message("\(properties)")
-        let returnArray: [DeclSyntax]
+        var returnArray: [DeclSyntax] = []
 
-        if declaration.description.contains("init(\(standardInitParameters))") {
-            returnArray = [.init(stringLiteral: decodeInitMethod)]
-        } else {
-            returnArray = [.init(stringLiteral: standardInitMethod), .init(stringLiteral: decodeInitMethod)]
+        if !declaration.description.contains("init(\(standardInitParameters))") && !standardInitBody.isEmpty {
+            returnArray.append(.init(stringLiteral: standardInitMethod))
+        }
+        
+        if !decodeInitBody.isEmpty {
+            returnArray.append(.init(stringLiteral: decodeInitMethod))
         }
 
         // Return the generated method wrapped in DeclSyntax
         return returnArray
-//        return [.init(stringLiteral: "var foo = \"\"")]
+//        return [.init(stringLiteral: properties.description)]
     }
 }
 

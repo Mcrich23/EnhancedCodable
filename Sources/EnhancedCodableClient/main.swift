@@ -8,10 +8,11 @@ struct DocCIndex: Codable, Identifiable {
     
     let interfaceLanguages: [String : [InterfaceLanguage]]
     
+    @CodableIgnoreInitializedProperties
     struct InterfaceLanguage: Codable {
         let title: String
         let path: String?
-        let type: String
+        var type: String
         
         let children: [InterfaceLanguage]?
     }
