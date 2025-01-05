@@ -46,7 +46,7 @@ enum CodableIgnoreInitializedProperties: MemberMacro {
                 return "self.\(name) = try container.decode(\(type).self, forKey: .\(name))"
             }
             
-            return "self.\(name) = try container.decodeIfPresent(\(type).self, forKey: .\(name))"
+            return "self.\(name) = try container.decodeIfPresent(\(type.dropLast()).self, forKey: .\(name))"
         }.filter({ !$0.isEmpty && $0 != " " }).joined(separator: "\n")
 
         // Create the full `init(from:)` method
