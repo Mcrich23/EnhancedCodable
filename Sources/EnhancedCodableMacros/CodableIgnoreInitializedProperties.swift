@@ -97,7 +97,7 @@ enum CodableIgnoreInitializedProperties: MemberMacro {
             returnArray.append(.init(stringLiteral: standardInitMethod))
         }
         
-        if !decodeInitBody.isEmpty {
+        if !declaration.description.contains("init(from decoder: Decoder)") && !decodeInitBody.isEmpty {
             returnArray.append(.init(stringLiteral: decodeInitMethod))
         }
 
