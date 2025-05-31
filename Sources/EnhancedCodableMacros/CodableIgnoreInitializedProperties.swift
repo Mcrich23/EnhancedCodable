@@ -20,90 +20,85 @@ enum MacroExpansionError: Error {
 
 enum CodableIgnoreInitializedProperties: MemberMacro {
     public static func expansion(of node: AttributeSyntax, providingMembersOf declaration: some DeclGroupSyntax, conformingTo protocols: [TypeSyntax], in context: some MacroExpansionContext) throws -> [DeclSyntax] {
-        //         Make sure the macro is applied to a struct declaration
-                guard let structDecl = declaration as? StructDeclSyntax else {
-                    throw MacroExpansionError.unsupportedDeclaration
-                }
-        //
-        //        // Process properties of the struct
-                let properties = structDecl.memberBlock.members.compactMap { member in
-                    member.decl.as(VariableDeclSyntax.self)
-                }
-        //
-        //        // Generate the body of the initializer
-                let decodeInitBody = properties.map { property in
-                    guard let name = property.bindings.first?.pattern.as(IdentifierPatternSyntax.self)?.identifier.text,
-                          let type = property.bindings.first?.typeAnnotation?.type.description
-                    else {
-                        return ""
-                    }
-                    
-                    guard (property.bindings.first?.initializer) == nil && (property.bindings.first?.accessorBlock) == nil else {
-                        return ""
-                    }
-                    
-                    guard type.hasSuffix("?") else {
-                        return "self.\(name) = try container.decode(\(type).self, forKey: .\(name))"
-                    }
-                    
-                    return "self.\(name) = try container.decodeIfPresent(\(type.dropLast()).self, forKey: .\(name))"
-                }.filter({ !$0.isEmpty && $0 != " " }).joined(separator: "\n")
+        guard let structDecl = declaration as? StructDeclSyntax else {
+            throw MacroExpansionError.unsupportedDeclaration
+        }
 
-                // Create the full `init(from:)` method
-                let decodeInitMethod = """
-                init(from decoder: Decoder) throws {
-                    let container = try decoder.container(keyedBy: CodingKeys.self)
-                    \(decodeInitBody)
-                }
-                """
-                
-                let standardInitParameters = properties.map { property in
-                    guard let name = property.bindings.first?.pattern.as(IdentifierPatternSyntax.self)?.identifier.text,
-                          let type = property.bindings.first?.typeAnnotation?.type.description
-                    else {
-                        return ""
-                    }
-                    
-                    guard (property.bindings.first?.initializer) == nil && (property.bindings.first?.accessorBlock) == nil else {
-                        return ""
-                    }
-                    
-                        return "\(name): \(type)"
-                }.filter({ !$0.isEmpty && $0 != " " }).joined(separator: ", ")
-                
-                let standardInitBody = properties.map { property in
-                    guard (property.bindings.first?.initializer) == nil && (property.bindings.first?.accessorBlock) == nil else {
-                        return ""
-                    }
-                    
-                    guard let name = property.bindings.first?.pattern.as(IdentifierPatternSyntax.self)?.identifier.text else {
-                        return ""
-                    }
-                    
-                    return "self.\(name) = \(name)"
-                }.filter({ !$0.isEmpty && $0 != " " }).joined(separator: "\n")
+        let existingInits = structDecl.memberBlock.members.compactMap {
+            $0.decl.as(InitializerDeclSyntax.self)
+        }
 
-                // Create the full `init(from:)` method
-                let standardInitMethod = """
-                init(\(standardInitParameters)) {
-                    \(standardInitBody)
-                }
-                """
-                
-        //        throw MacroExpansionError.message("\(properties)")
-                var returnArray: [DeclSyntax] = []
+        let hasFromDecoderInit = existingInits.contains { initDecl in
+            guard let firstParam = initDecl.signature.parameterClause.parameters.first else { return false }
+            return firstParam.firstName.text == "decoder" &&
+            firstParam.type.description.contains("Decoder") == true
+        }
 
-                if !declaration.description.contains("init(\(standardInitParameters))") && !standardInitBody.isEmpty {
-                    returnArray.append(.init(stringLiteral: standardInitMethod))
-                }
-                
-                if !declaration.description.contains("init(from decoder: Decoder)") && !decodeInitBody.isEmpty {
-                    returnArray.append(.init(stringLiteral: decodeInitMethod))
-                }
+        let hasStandardInit = existingInits.contains { initDecl in
+            // Check that this isn't `init(from decoder: Decoder)`
+            guard let firstParam = initDecl.signature.parameterClause.parameters.first else { return false }
+            return !(firstParam.firstName.text == "decoder" &&
+                     firstParam.type.description.contains("Decoder") == true)
+        }
 
-                // Return the generated method wrapped in DeclSyntax
-                return returnArray
-        //        return [.init(stringLiteral: properties.description)]
+        let properties = structDecl.memberBlock.members.compactMap { $0.decl.as(VariableDeclSyntax.self) }
+
+        let initEligibleProperties = properties.filter { prop in
+            guard let binding = prop.bindings.first else { return false }
+            return binding.initializer == nil && binding.accessorBlock == nil
+        }
+
+        let decodeInitBody = initEligibleProperties.compactMap { property in
+            guard let name = property.bindings.first?.pattern.as(IdentifierPatternSyntax.self)?.identifier.text,
+                  let type = property.bindings.first?.typeAnnotation?.type.description else {
+                return nil
+            }
+
+            if type.hasSuffix("?") {
+                return "self.\(name) = try container.decodeIfPresent(\(type.dropLast()).self, forKey: .\(name))"
+            } else {
+                return "self.\(name) = try container.decode(\(type).self, forKey: .\(name))"
+            }
+        }.joined(separator: "\n")
+
+        let decodeInitMethod = """
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            \(decodeInitBody)
+        }
+        """
+
+        let standardInitParameters = initEligibleProperties.compactMap { property in
+            guard let name = property.bindings.first?.pattern.as(IdentifierPatternSyntax.self)?.identifier.text,
+                  let type = property.bindings.first?.typeAnnotation?.type.description else {
+                return nil
+            }
+            return "\(name): \(type)"
+        }.joined(separator: ", ")
+
+        let standardInitBody = initEligibleProperties.compactMap { property in
+            guard let name = property.bindings.first?.pattern.as(IdentifierPatternSyntax.self)?.identifier.text else {
+                return nil
+            }
+            return "self.\(name) = \(name)"
+        }.joined(separator: "\n")
+
+        let standardInitMethod = """
+        init(\(standardInitParameters)) {
+            \(standardInitBody)
+        }
+        """
+
+        var returnArray: [DeclSyntax] = []
+        if !hasStandardInit && !standardInitBody.isEmpty {
+            returnArray.append(.init(stringLiteral: standardInitMethod))
+        }
+
+        if !hasFromDecoderInit && !decodeInitBody.isEmpty {
+            returnArray.append(.init(stringLiteral: decodeInitMethod))
+        }
+
+        return returnArray
     }
 }
 
