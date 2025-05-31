@@ -69,7 +69,7 @@ public enum CodableIgnoreInitializedProperties: ExtensionMacro {
         }
         """
 
-        let extensionSyntax = try ExtensionDeclSyntax("extension \(type.trimmed): Decodable {\n\(decodeInit)\n}")
+        let extensionSyntax = try ExtensionDeclSyntax("extension \(type.trimmed): Decodable {\n\(raw: decodeInit)\n}")
 
         return [extensionSyntax]
     }
