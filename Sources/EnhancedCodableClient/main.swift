@@ -2,7 +2,7 @@ import EnhancedCodable
 import EnhancedCodableMacros
 import Foundation
 
-@Codable
+@CodableIgnoreInitializedProperties
 struct DocCIndex: Codable, Identifiable {
     @CodableIgnored let id: UUID = UUID()
     
@@ -18,4 +18,4 @@ struct DocCIndex: Codable, Identifiable {
 }
 
 let doc = DocCIndex(interfaceLanguages: [:])
-print(doc)
+//print(doc)
