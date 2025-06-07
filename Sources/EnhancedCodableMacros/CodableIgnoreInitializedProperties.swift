@@ -16,62 +16,50 @@ enum MacroExpansionError: Error {
     case unsupportedDeclaration
 }
 
-public enum CodableIgnoreInitializedProperties: ExtensionMacro {
-    public static func expansion(
-        of node: AttributeSyntax,
-        attachedTo declaration: some DeclGroupSyntax,
-        providingExtensionsOf type: some TypeSyntaxProtocol,
-        conformingTo protocols: [TypeSyntax],
-        in context: some MacroExpansionContext
-    ) throws -> [ExtensionDeclSyntax] {
+public struct CodableIgnoreInitializedProperties: MemberMacro {
+    public static func expansion(of node: AttributeSyntax, providingMembersOf declaration: some DeclGroupSyntax, in context: some MacroExpansionContext) throws -> [DeclSyntax] {
         guard let structDecl = declaration.as(StructDeclSyntax.self) else {
             throw MacroExpansionError.unsupportedDeclaration
         }
-
-        let existingInits = structDecl.memberBlock.members.compactMap {
-            $0.decl.as(InitializerDeclSyntax.self)
+        let existingEnums = structDecl.memberBlock.members.compactMap {
+            $0.decl.as(EnumDeclSyntax.self)
         }
 
-        let hasFromDecoderInit = existingInits.contains { initDecl in
-            guard let firstParam = initDecl.signature.parameterClause.parameters.first else { return false }
-            return firstParam.firstName.text == "decoder" &&
-                   firstParam.type.description.contains("Decoder")
+        let hasCodingKeys = existingEnums.contains { decl in
+            decl.name.text == "CodingKeys"
         }
-
+        guard !hasCodingKeys else {
+            throw "Coding keys already exist."
+        }
+        
         let properties = structDecl.memberBlock.members.compactMap { $0.decl.as(VariableDeclSyntax.self) }
 
         let initEligibleProperties = properties.filter { prop in
             guard let binding = prop.bindings.first else { return false }
             return binding.initializer == nil && binding.accessorBlock == nil
         }
-
-        let decodeInitBody = initEligibleProperties.compactMap { property in
-            guard let name = property.bindings.first?.pattern.as(IdentifierPatternSyntax.self)?.identifier.text,
-                  let type = property.bindings.first?.typeAnnotation?.type.description else {
+        
+        let enumCases: [String] = initEligibleProperties.compactMap { decl in
+            guard let name = decl.bindings.first?.pattern.as(IdentifierPatternSyntax.self)?.identifier.text
+                  
+            else {
                 return nil
             }
+            
+            return "case \(name)"
+        }
 
-            if type.hasSuffix("?") {
-                return "self.\(name) = try container.decodeIfPresent(\(type.dropLast()).self, forKey: .\(name))"
-            } else {
-                return "self.\(name) = try container.decode(\(type).self, forKey: .\(name))"
-            }
-        }.joined(separator: "\n")
-
-        guard !decodeInitBody.isEmpty, !hasFromDecoderInit else {
+        guard !enumCases.isEmpty else {
             return []
         }
 
-        let decodeInit = """
-        init(from decoder: Decoder) throws {
-            let container = try decoder.container(keyedBy: CodingKeys.self)
-            \(decodeInitBody)
+        let codingKeysEnum = """
+        enum CodingKeys: String, CodingKey {
+            \(enumCases.joined(separator: "\n"))
         }
         """
 
-        let extensionSyntax = try ExtensionDeclSyntax("extension \(type.trimmed): Decodable {\n\(raw: decodeInit)\n}")
-
-        return [extensionSyntax]
+        return [.init(stringLiteral: codingKeysEnum)]
     }
 }
 
@@ -81,3 +69,5 @@ struct CodableIgnoreInitializedPropertiesPlugin: CompilerPlugin {
         CodableIgnoreInitializedProperties.self,
     ]
 }
+
+extension String: @retroactive Error {}
