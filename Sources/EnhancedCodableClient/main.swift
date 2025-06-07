@@ -2,13 +2,12 @@ import EnhancedCodable
 import EnhancedCodableMacros
 import Foundation
 
-@CodableIgnoreInitializedProperties
+@Codable
 struct DocCIndex: Codable, Identifiable {
-    let id: UUID = UUID()
+    @CodableIgnored let id: UUID = UUID()
     
     let interfaceLanguages: [String : [InterfaceLanguage]]
     
-    @CodableIgnoreInitializedProperties
     struct InterfaceLanguage: Codable {
         let title: String
         let path: String?
@@ -16,5 +15,7 @@ struct DocCIndex: Codable, Identifiable {
         
         let children: [InterfaceLanguage]?
     }
-    
 }
+
+let doc = DocCIndex(interfaceLanguages: [:])
+print(doc)

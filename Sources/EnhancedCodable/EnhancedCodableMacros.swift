@@ -9,3 +9,10 @@
 /// produces a tuple `(x + y, "x + y")`.
 @attached(member, names: arbitrary)
 public macro CodableIgnoreInitializedProperties() = #externalMacro(module: "EnhancedCodableMacros", type: "CodableIgnoreInitializedProperties")
+
+@attached(member, names: arbitrary)
+@attached(extension, conformances: Codable, names: arbitrary)
+public macro Codable() = #externalMacro(module: "EnhancedCodableMacros", type: "Codable")
+
+@attached(peer)
+public macro CodableIgnored() = #externalMacro(module: "EnhancedCodableMacros", type: "CodableIgnored")
