@@ -7,6 +7,8 @@
 ///     #stringify(x + y)
 ///
 /// produces a tuple `(x + y, "x + y")`.
+@attached(member, names: arbitrary)
+@attached(extension, conformances: Codable, names: arbitrary)
 @attached(memberAttribute)
 public macro CodableIgnoreInitializedProperties() = #externalMacro(module: "EnhancedCodableMacros", type: "CodableIgnoreInitializedProperties")
 
