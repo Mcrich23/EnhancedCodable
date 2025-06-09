@@ -7,12 +7,14 @@
 
 import SwiftCompilerPlugin
 import SwiftSyntaxMacros
+import SwiftDiagnostics
 
 @main
 struct EnhancedCodableMacrosPlugin: CompilerPlugin {
     let providingMacros: [Macro.Type] = [
         Codable.self,
         CodableIgnored.self,
+        CodableIgnoreInitializedProperties.self,
     ]
 }
 
@@ -31,4 +33,28 @@ enum MacroExpansionError: Error {
 }
 
 extension String: @retroactive Error {
+}
+
+/// Diagnostic message for warnings
+struct WarningMessage: DiagnosticMessage {
+    let message: String
+    let id: String
+    let severity: DiagnosticSeverity = .warning
+    
+    var diagnosticID: MessageID {
+        .init(domain: "SwiftMacrosAndMe", id: id)
+    }
+    
+    var fixItMessage: FixItMessageStruct {
+        FixItMessageStruct(message: message, id: id)
+    }
+}
+
+struct FixItMessageStruct: FixItMessage {
+    var message: String
+    let id: String
+    
+    var fixItID: MessageID {
+        .init(domain: "SwiftMacrosAndMe", id: id)
+    }
 }
